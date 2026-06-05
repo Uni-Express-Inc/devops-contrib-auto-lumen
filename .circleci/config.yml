@@ -47,14 +47,14 @@ jobs:
           token-variable: SNYK_TOKEN
           severity-threshold: low
           additional-test-arguments: "--all-projects --detection-depth=4"
-          fail-on-issues: false
+          fail-on-issues: true
           monitor-on-build: false
       - snyk/scan:
           cli-version: "1.1305.0"
           command: code test
           token-variable: SNYK_TOKEN
           severity-threshold: low
-          fail-on-issues: false
+          fail-on-issues: true
           monitor-on-build: false
 
 workflows:

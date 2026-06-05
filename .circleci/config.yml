@@ -23,10 +23,6 @@ jobs:
             fi
 
             php -m | grep -i '^opentelemetry$'
-      - restore_cache:
-          keys:
-            - composer-v1-{{ checksum "composer.json" }}
-            - composer-v1-
       - run:
           name: Validate Composer metadata
           command: composer validate --no-check-lock --strict
@@ -37,10 +33,6 @@ jobs:
             composer update --prefer-dist --no-progress
             git checkout -- composer.json
             test -f composer.lock
-      - save_cache:
-          key: composer-v1-{{ checksum "composer.json" }}
-          paths:
-            - ~/.cache/composer
       - snyk/scan:
           cli-version: "1.1305.0"
           command: test
@@ -48,7 +40,7 @@ jobs:
           severity-threshold: low
           additional-test-arguments: "--all-projects --detection-depth=4"
           fail-on-issues: false
-          monitor-on-build: false
+          monitor-on-build: true
       - snyk/scan:
           cli-version: "1.1305.0"
           command: code test

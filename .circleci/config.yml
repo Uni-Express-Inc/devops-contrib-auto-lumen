@@ -1,0 +1,68 @@
+version: 2.1
+
+orbs:
+  snyk: snyk/snyk@2.3.0
+
+jobs:
+  snyk-scan:
+    docker:
+      - image: cimg/php:8.1
+    environment:
+      COMPOSER_NO_INTERACTION: "1"
+    steps:
+      - checkout
+      - run:
+          name: Install OpenTelemetry PHP extension
+          command: |
+            if ! php -m | grep -qi '^opentelemetry$'; then
+              sudo pecl channel-update pecl.php.net
+              printf "\n" | sudo pecl install opentelemetry-1.2.1
+
+              PHP_INI_SCAN_DIR="$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR ?: dirname(php_ini_loaded_file());')"
+              echo "extension=opentelemetry.so" | sudo tee "${PHP_INI_SCAN_DIR}/opentelemetry.ini"
+            fi
+
+            php -m | grep -i '^opentelemetry$'
+      - restore_cache:
+          keys:
+            - composer-v1-{{ checksum "composer.json" }}
+            - composer-v1-
+      - run:
+          name: Validate Composer metadata
+          command: composer validate --no-check-lock --strict
+      - run:
+          name: Resolve Composer dependencies for Snyk
+          command: |
+            composer config lock true
+            composer update --prefer-dist --no-progress
+            git checkout -- composer.json
+            test -f composer.lock
+      - save_cache:
+          key: composer-v1-{{ checksum "composer.json" }}
+          paths:
+            - ~/.cache/composer
+      - snyk/scan:
+          cli-version: "1.1305.0"
+          command: test
+          token-variable: SNYK_TOKEN
+          severity-threshold: low
+          additional-test-arguments: "--all-projects --detection-depth=4"
+          fail-on-issues: false
+          monitor-on-build: false
+      - snyk/scan:
+          cli-version: "1.1305.0"
+          command: code test
+          token-variable: SNYK_TOKEN
+          severity-threshold: low
+          fail-on-issues: true
+          monitor-on-build: false
+
+workflows:
+  security-scan:
+    jobs:
+      - snyk-scan:
+          filters:
+            branches:
+              only:
+                - main
+                - circleci-project-setup
